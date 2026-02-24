@@ -25,19 +25,29 @@ git_checkout :: proc(repo_path: string, commit: string) -> bool {
 	return ok
 }
 
-// Get the latest commit SHA from a remote repository
-git_latest_commit :: proc(url: string) -> (commit: string, ok: bool) {
+// Resolve a tag, branch, or HEAD to a full commit SHA.
+// If it fails, checks if the ref could be a direct commit hash.
+git_resolve_commit :: proc(url: string, ref: string = "HEAD") -> (commit: string, ok: bool) {
 	git_url := make_git_url(url)
 	defer delete(git_url)
 
-	output, cmd_ok := run_cmd({"git", "ls-remote", git_url, "HEAD"})
+	output, cmd_ok := run_cmd({"git", "ls-remote", git_url, ref})
 	if !cmd_ok {
 		print_error(fmt.tprintf("git ls-remote failed for %s", url))
 		return "", false
 	}
 	defer delete(output)
 
-	// Output format: "<sha>\tHEAD\n"
+	if len(strings.trim_space(output)) == 0 {
+		// Possibly a direct commit hash (short or full)
+		if len(ref) >= 7 {
+			return strings.clone(ref), true
+		}
+		print_error(fmt.tprintf("Ref '%s' not found on remote", ref))
+		return "", false
+	}
+
+	// Output format is usually `<sha>\t<ref_name>\n`
 	tab_idx := strings.index(output, "\t")
 	if tab_idx < 0 {
 		print_error("Unexpected output from git ls-remote")

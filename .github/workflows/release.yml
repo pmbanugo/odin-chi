@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+jobs:
+  release:
+    name: Build & Release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            suffix: linux-amd64
+            artifact_name: chi
+          - os: macos-latest
+            suffix: darwin-arm64
+            artifact_name: chi
+          # Uncomment when Windows support is tested
+          # - os: windows-latest
+          #   suffix: windows-amd64
+          #   artifact_name: chi.exe
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Odin
+        uses: laytan/setup-odin@v2
+        with:
+          version: 'dev-2026-02'
+
+      - name: Install dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y git rsync
+
+      - name: Build binary
+        run: odin build src/ -out:${{ matrix.artifact_name }} -opt:3
+
+      - name: Rename binary for release
+        run: mv ${{ matrix.artifact_name }} chi-${{ matrix.suffix }}${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: chi-${{ matrix.suffix }}*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

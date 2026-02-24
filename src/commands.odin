@@ -20,8 +20,8 @@ cmd_init :: proc() {
 	}
 }
 
-// chi add <url> — Add a dependency
-cmd_add :: proc(raw_url: string) {
+// chi add <url> [ref] — Add a dependency
+cmd_add :: proc(raw_url: string, ref: string) {
 	url := normalize_url(raw_url)
 	defer delete(url)
 
@@ -47,11 +47,11 @@ cmd_add :: proc(raw_url: string) {
 		return
 	}
 
-	// Get latest commit
-	print_info(fmt.tprintf("Resolving latest commit for %s ...", url))
-	commit, commit_ok := git_latest_commit(url)
+	// Get target commit
+	print_info(fmt.tprintf("Resolving commit for %s@%s ...", url, ref))
+	commit, commit_ok := git_resolve_commit(url, ref)
 	if !commit_ok {
-		print_error("Failed to resolve latest commit")
+		print_error("Failed to resolve commit")
 		os2.exit(1)
 	}
 	defer delete(commit)
@@ -222,7 +222,7 @@ cmd_update :: proc(name: string) {
 	}
 
 	print_info(fmt.tprintf("Checking for updates to %s ...", name))
-	new_commit, commit_ok := git_latest_commit(dep.url)
+	new_commit, commit_ok := git_resolve_commit(dep.url, "HEAD")
 	if !commit_ok {
 		print_error("Failed to resolve latest commit")
 		os2.exit(1)
@@ -269,6 +269,37 @@ cmd_update :: proc(name: string) {
 	} else {
 		print_error("Failed to write chi.odin")
 		os2.exit(1)
+	}
+}
+
+// chi remove <name> — Remove a dependency and its vendored files
+cmd_remove :: proc(name: string) {
+	deps, ok := read_manifest(MANIFEST_FILE)
+	if !ok {
+		print_error("Failed to read chi.odin")
+		os2.exit(1)
+	}
+
+	if !(name in deps) {
+		print_error(fmt.tprintf("Dependency '%s' not found in chi.odin", name))
+		os2.exit(1)
+	}
+
+	delete_key(&deps, name)
+
+	if write_manifest(MANIFEST_FILE, deps) {
+		print_success(fmt.tprintf("Removed %s from chi.odin", name))
+	} else {
+		print_error("Failed to write chi.odin")
+		os2.exit(1)
+	}
+
+	vendor_path := filepath.join({"vendor", name}, context.allocator)
+	defer delete(vendor_path)
+
+	if os2.exists(vendor_path) {
+		os2.remove_all(vendor_path)
+		print_success(fmt.tprintf("Removed vendor directory for %s", name))
 	}
 }
 

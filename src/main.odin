@@ -21,10 +21,21 @@ main :: proc() {
 
 	case "add":
 		if len(args) < 3 {
-			print_error("Usage: chi add <url>")
+			print_error("Usage: chi add <url> [commit/tag]")
 			os2.exit(1)
 		}
-		cmd_add(args[2])
+		ref := "HEAD"
+		if len(args) >= 4 {
+			ref = args[3]
+		}
+		cmd_add(args[2], ref)
+
+	case "remove":
+		if len(args) < 3 {
+			print_error("Usage: chi remove <name>")
+			os2.exit(1)
+		}
+		cmd_remove(args[2])
 
 	case "fetch":
 		cmd_fetch()
@@ -61,7 +72,8 @@ print_usage :: proc() {
 	fmt.println("Usage: chi <command> [arguments]\n")
 	fmt.println("Commands:")
 	fmt.println("  init          Initialize a chi.odin manifest")
-	fmt.println("  add <url>     Add a dependency")
+	fmt.println("  add <url> [ref] Add a dependency (ref is a tag, branch, or commit hash)")
+	fmt.println("  remove <name>   Remove a dependency and its vendored files")
 	fmt.println("  fetch         Download all dependencies to global cache")
 	fmt.println("  vendor        Populate vendor/ from the cache")
 	fmt.println("  update <name> Update a dependency to the latest commit")
