@@ -1,0 +1,12 @@
+# Compiled binaries
+chi
+chi.bin
+odin-chi
+
+# OS specific
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Vendor directory (if you want to exclude downloaded dependencies from source control)
+# vendor/
