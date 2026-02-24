@@ -6,7 +6,7 @@ It is built with minimalism and integrity in mind:
 - **No Central Registry:** The internet (Git) is the source of truth.
 - **Zero Magic:** No background daemons or hidden state. Everything is explicit.
 - **Odin-First:** Configuration is written in pure Odin syntax (`chi.odin`).
-- **Reproducible:** Uses BLAKE2b content hashing to verify vendored files haven't been tampered with.
+- **Reproducible:** Uses BLAKE2b content hashing to verify vendored files haven't been tampered with. (*p.s* I'd like to switch to BLAKE3 when Odin has it in its core package).
 
 ## Installation
 
