@@ -20,6 +20,32 @@ cd odin-chi
 odin build src/ -out:chi
 ```
 
+## Testing
+
+Run the test suite using Odin's built-in test runner:
+
+```bash
+odin test src/ -all-packages
+```
+
+Run specific tests:
+
+```bash
+# Test utility functions
+odin test src/ -all-packages -define:ODIN_TEST_NAMES=main.test_url_to_dir_name,main.test_url_to_pkg_name
+
+# Test manifest parsing
+odin test src/ -all-packages -define:ODIN_TEST_NAMES=main.test_write_and_read_manifest
+
+# Test hashing
+odin test src/ -all-packages -define:ODIN_TEST_NAMES=main.test_hash_directory,main.test_verify_hash
+```
+
+The test suite includes:
+- **Unit tests** for utility functions, manifest parsing, and hashing
+- Uses `core:testing` with memory tracking enabled
+- Tests are designed to be isolated, repeatable, and automatable
+
 ## Usage
 
 ### 1. Initialize

@@ -1,0 +1,41 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+          - os: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Odin
+        uses: laytan/setup-odin@v2
+        with:
+          version: 'dev-2026-02'
+
+      - name: Install dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y git rsync
+
+      - name: Install dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: brew install git rsync
+
+      - name: Run unit tests
+        run: |
+          odin test src/ -all-packages \
+            -define:ODIN_TEST_NAMES=main.test_url_to_dir_name,main.test_url_to_pkg_name,main.test_normalize_url,main.test_make_git_url,main.test_bytes_to_hex,main.test_write_and_read_manifest,main.test_write_empty_manifest,main.test_read_nonexistent_manifest,main.test_manifest_with_comments,main.test_hash_directory,main.test_hash_empty_directory,main.test_hash_nonexistent_directory,main.test_verify_hash,main.test_hash_excludes_git_directory
