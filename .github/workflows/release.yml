@@ -15,13 +15,24 @@ jobs:
           - os: ubuntu-latest
             suffix: linux-amd64
             artifact_name: chi
+          - os: ubuntu-latest
+            suffix: linux-arm64
+            artifact_name: chi
+          - os: ubuntu-latest
+            suffix: linux-i386
+            artifact_name: chi
           - os: macos-latest
             suffix: darwin-arm64
             artifact_name: chi
-          # Uncomment when Windows support is tested
-          # - os: windows-latest
-          #   suffix: windows-amd64
-          #   artifact_name: chi.exe
+          - os: macos-latest
+            suffix: darwin-amd64
+            artifact_name: chi
+          - os: windows-latest
+            suffix: windows-amd64
+            artifact_name: chi.exe
+          - os: windows-latest
+            suffix: windows-i386
+            artifact_name: chi.exe
 
     steps:
       - name: Checkout code
@@ -37,15 +48,15 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y git rsync
 
       - name: Build binary
-        run: odin build src/ -out:${{ matrix.artifact_name }} -opt:3
+        run: odin build src/ -out:${{ matrix.artifact_name }}
 
       - name: Rename binary for release
-        run: mv ${{ matrix.artifact_name }} chi-${{ matrix.suffix }}${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+        run: mv ${{ matrix.artifact_name }} chi-${{ matrix.suffix }}
 
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: chi-${{ matrix.suffix }}*
+          files: chi-${{ matrix.suffix }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

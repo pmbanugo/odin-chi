@@ -10,9 +10,41 @@ It is built with minimalism and integrity in mind:
 
 ## Installation
 
-Download the binary for your OS from the [Releases](https://github.com/pmbanugo/odin-chi/releases) page and place it in your `$PATH`.
+### Pre-built Binaries
 
-Or build from source:
+Download from [Releases](https://github.com/pmbanugo/odin-chi/releases):
+
+```bash
+# Linux (amd64)
+curl -L https://github.com/pmbanugo/odin-chi/releases/latest/download/chi-linux-amd64 -o chi
+chmod +x chi
+
+# Linux (arm64)
+curl -L https://github.com/pmbanugo/odin-chi/releases/latest/download/chi-linux-arm64 -o chi
+chmod +x chi
+
+# Linux (i386)
+curl -L https://github.com/pmbanugo/odin-chi/releases/latest/download/chi-linux-i386 -o chi
+chmod +x chi
+
+# macOS (Apple Silicon)
+curl -L https://github.com/pmbanugo/odin-chi/releases/latest/download/chi-darwin-arm64 -o chi
+chmod +x chi
+
+# macOS (Intel)
+curl -L https://github.com/pmbanugo/odin-chi/releases/latest/download/chi-darwin-amd64 -o chi
+chmod +x chi
+
+# Windows (amd64)
+curl -L https://github.com/pmbanugo/odin-chi/releases/latest/download/chi-windows-amd64 -o chi.exe
+
+# Windows (i386)
+curl -L https://github.com/pmbanugo/odin-chi/releases/latest/download/chi-windows-i386 -o chi.exe
+```
+
+Check [Releases](https://github.com/pmbanugo/odin-chi/releases) for additional architectures.
+
+### Build from Source
 
 ```bash
 git clone https://github.com/pmbanugo/odin-chi
