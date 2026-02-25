@@ -10,9 +10,10 @@ on:
 
 jobs:
   test:
-    name: Run Tests
+    name: Run Tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
@@ -29,4 +30,4 @@ jobs:
           release: dev-2026-02
 
       - name: Run unit tests
-        run: odin test src/ -all-packages -define:ODIN_TEST_NAMES=main.test_url_to_dir_name,main.test_url_to_pkg_name,main.test_normalize_url,main.test_make_git_url,main.test_bytes_to_hex,main.test_write_and_read_manifest,main.test_write_empty_manifest,main.test_read_nonexistent_manifest,main.test_manifest_with_comments,main.test_hash_directory,main.test_hash_empty_directory,main.test_hash_nonexistent_directory,main.test_verify_hash,main.test_hash_excludes_git_directory
+        run: odin test src/ -all-packages
