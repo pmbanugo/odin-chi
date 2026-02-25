@@ -17,58 +17,31 @@ jobs:
             suffix: linux-amd64
             artifact_name: chi
             target: linux_amd64
-            deps: ""
-            linker_flags: ""
 
-          - os: ubuntu-latest
+          # Native ARM64 Linux runner — avoids cross-compilation entirely
+          - os: ubuntu-24.04-arm
             suffix: linux-arm64
             artifact_name: chi
             target: linux_arm64
-            deps: gcc-aarch64-linux-gnu
-            linker_flags: "-extra-linker-flags:-fuse-ld=/usr/bin/aarch64-linux-gnu-ld"
-
-          - os: ubuntu-latest
-            suffix: linux-i386
-            artifact_name: chi
-            target: linux_i386
-            deps: gcc-multilib lib32gcc-s1
-            linker_flags: ""
 
           - os: macos-latest
             suffix: darwin-arm64
             artifact_name: chi
             target: darwin_arm64
-            deps: ""
-            linker_flags: ""
 
-          - os: macos-latest
+          - os: macos-13
             suffix: darwin-amd64
             artifact_name: chi
             target: darwin_amd64
-            deps: ""
-            linker_flags: ""
 
           - os: windows-latest
             suffix: windows-amd64
             artifact_name: chi.exe
             target: windows_amd64
-            deps: ""
-            linker_flags: ""
-
-          - os: windows-latest
-            suffix: windows-i386
-            artifact_name: chi.exe
-            target: windows_i386
-            deps: ""
-            linker_flags: ""
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Install cross-compilation dependencies (Linux)
-        if: matrix.deps != ''
-        run: sudo apt-get update && sudo apt-get install -y ${{ matrix.deps }}
 
       - name: Setup Odin
         uses: laytan/setup-odin@v2
@@ -76,16 +49,15 @@ jobs:
           release: dev-2026-02
 
       - name: Build binary (Unix)
-        if: matrix.os != 'windows-latest'
+        if: runner.os != 'Windows'
         run: |
           odin build src/ \
             -out:chi-${{ matrix.suffix }} \
             -o:speed \
-            -target:${{ matrix.target }} \
-            ${{ matrix.linker_flags }}
+            -target:${{ matrix.target }}
 
       - name: Build binary (Windows)
-        if: matrix.os == 'windows-latest'
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           odin build src/ `
@@ -94,7 +66,7 @@ jobs:
             -target:${{ matrix.target }}
 
       - name: Upload artifact (Unix)
-        if: matrix.os != 'windows-latest'
+        if: runner.os != 'Windows'
         uses: actions/upload-artifact@v4
         with:
           name: chi-${{ matrix.suffix }}
@@ -102,7 +74,7 @@ jobs:
           retention-days: 1
 
       - name: Upload artifact (Windows)
-        if: matrix.os == 'windows-latest'
+        if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
           name: chi-${{ matrix.suffix }}
