@@ -24,12 +24,12 @@ jobs:
             artifact_name: chi
             target: linux_arm64
 
-          - os: macos-latest
+          - os: macos-15
             suffix: darwin-arm64
             artifact_name: chi
             target: darwin_arm64
 
-          - os: macos-13
+          - os: macos-15-intel
             suffix: darwin-amd64
             artifact_name: chi
             target: darwin_amd64
