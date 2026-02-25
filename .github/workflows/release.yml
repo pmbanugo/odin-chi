@@ -50,10 +50,6 @@ jobs:
         with:
           release: dev-2026-02
 
-      - name: Install dependencies (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y git rsync
-
       - name: Build binary
         run: odin build src/ -out:${{ matrix.artifact_name }} -opt:3 -target:${{ matrix.target }}
 
