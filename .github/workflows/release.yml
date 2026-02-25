@@ -18,42 +18,49 @@ jobs:
             artifact_name: chi
             target: linux_amd64
             deps: ""
+            linker_flags: ""
 
           - os: ubuntu-latest
             suffix: linux-arm64
             artifact_name: chi
             target: linux_arm64
             deps: gcc-aarch64-linux-gnu
+            linker_flags: "-extra-linker-flags:-fuse-ld=/usr/bin/aarch64-linux-gnu-ld"
 
           - os: ubuntu-latest
             suffix: linux-i386
             artifact_name: chi
             target: linux_i386
-            deps: gcc-multilib
+            deps: gcc-multilib lib32gcc-s1
+            linker_flags: ""
 
           - os: macos-latest
             suffix: darwin-arm64
             artifact_name: chi
             target: darwin_arm64
             deps: ""
+            linker_flags: ""
 
           - os: macos-latest
             suffix: darwin-amd64
             artifact_name: chi
             target: darwin_amd64
             deps: ""
+            linker_flags: ""
 
           - os: windows-latest
             suffix: windows-amd64
             artifact_name: chi.exe
             target: windows_amd64
             deps: ""
+            linker_flags: ""
 
           - os: windows-latest
             suffix: windows-i386
             artifact_name: chi.exe
             target: windows_i386
             deps: ""
+            linker_flags: ""
 
     steps:
       - name: Checkout code
@@ -74,7 +81,8 @@ jobs:
           odin build src/ \
             -out:chi-${{ matrix.suffix }} \
             -o:speed \
-            -target:${{ matrix.target }}
+            -target:${{ matrix.target }} \
+            ${{ matrix.linker_flags }}
 
       - name: Build binary (Windows)
         if: matrix.os == 'windows-latest'
