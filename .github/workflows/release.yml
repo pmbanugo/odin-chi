@@ -51,7 +51,7 @@ jobs:
           release: dev-2026-02
 
       - name: Build binary
-        run: odin build src/ -out:${{ matrix.artifact_name }} -opt:3 -target:${{ matrix.target }}
+        run: odin build src/ -out:${{ matrix.artifact_name }} -o:speed -target:${{ matrix.target }}
 
       - name: Rename binary for release
         run: mv ${{ matrix.artifact_name }} chi-${{ matrix.suffix }}
