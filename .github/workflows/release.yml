@@ -3,63 +3,126 @@ name: Release
 on:
   push:
     tags:
-      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+      - "v*"
 
 jobs:
-  release:
-    name: Build & Release
+  build:
+    name: Build (${{ matrix.suffix }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
             suffix: linux-amd64
             artifact_name: chi
             target: linux_amd64
+            deps: ""
+
           - os: ubuntu-latest
             suffix: linux-arm64
             artifact_name: chi
             target: linux_arm64
+            deps: gcc-aarch64-linux-gnu
+
           - os: ubuntu-latest
             suffix: linux-i386
             artifact_name: chi
             target: linux_i386
+            deps: gcc-multilib
+
           - os: macos-latest
             suffix: darwin-arm64
             artifact_name: chi
             target: darwin_arm64
+            deps: ""
+
           - os: macos-latest
             suffix: darwin-amd64
             artifact_name: chi
             target: darwin_amd64
+            deps: ""
+
           - os: windows-latest
             suffix: windows-amd64
             artifact_name: chi.exe
             target: windows_amd64
+            deps: ""
+
           - os: windows-latest
             suffix: windows-i386
             artifact_name: chi.exe
             target: windows_i386
+            deps: ""
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Install cross-compilation dependencies (Linux)
+        if: matrix.deps != ''
+        run: sudo apt-get update && sudo apt-get install -y ${{ matrix.deps }}
 
       - name: Setup Odin
         uses: laytan/setup-odin@v2
         with:
           release: dev-2026-02
 
-      - name: Build binary
-        run: odin build src/ -out:${{ matrix.artifact_name }} -o:speed -target:${{ matrix.target }}
+      - name: Build binary (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          odin build src/ \
+            -out:chi-${{ matrix.suffix }} \
+            -o:speed \
+            -target:${{ matrix.target }}
 
-      - name: Rename binary for release
-        run: mv ${{ matrix.artifact_name }} chi-${{ matrix.suffix }}
+      - name: Build binary (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          odin build src/ `
+            -out:chi-${{ matrix.suffix }}.exe `
+            -o:speed `
+            -target:${{ matrix.target }}
 
-      - name: Release
+      - name: Upload artifact (Unix)
+        if: matrix.os != 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: chi-${{ matrix.suffix }}
+          path: chi-${{ matrix.suffix }}
+          retention-days: 1
+
+      - name: Upload artifact (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: chi-${{ matrix.suffix }}
+          path: chi-${{ matrix.suffix }}.exe
+          retention-days: 1
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Display artifacts
+        run: ls -R artifacts/
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: chi-${{ matrix.suffix }}
-          generate_release_notes: false
+          files: artifacts/**
+          generate_release_notes: true
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
