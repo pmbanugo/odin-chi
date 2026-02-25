@@ -15,24 +15,31 @@ jobs:
           - os: ubuntu-latest
             suffix: linux-amd64
             artifact_name: chi
+            target: linux_amd64
           - os: ubuntu-latest
             suffix: linux-arm64
             artifact_name: chi
+            target: linux_arm64
           - os: ubuntu-latest
             suffix: linux-i386
             artifact_name: chi
+            target: linux_i386
           - os: macos-latest
             suffix: darwin-arm64
             artifact_name: chi
+            target: darwin_arm64
           - os: macos-latest
             suffix: darwin-amd64
             artifact_name: chi
+            target: darwin_amd64
           - os: windows-latest
             suffix: windows-amd64
             artifact_name: chi.exe
+            target: windows_amd64
           - os: windows-latest
             suffix: windows-i386
             artifact_name: chi.exe
+            target: windows_i386
 
     steps:
       - name: Checkout code
@@ -48,7 +55,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y git rsync
 
       - name: Build binary
-        run: odin build src/ -out:${{ matrix.artifact_name }}
+        run: odin build src/ -out:${{ matrix.artifact_name }} -opt:3 -target:${{ matrix.target }}
 
       - name: Rename binary for release
         run: mv ${{ matrix.artifact_name }} chi-${{ matrix.suffix }}
