@@ -136,3 +136,127 @@ Dependency :: struct {
 	delete(deps)
 	delete(manifest_path)
 }
+
+@(test)
+test_manifest_sorted_keys :: proc(t: ^testing.T) {
+	tmp_dir := "test_tmp_sorted"
+	os2.make_directory(tmp_dir)
+	defer os2.remove_all(tmp_dir)
+
+	manifest_path := filepath.join({tmp_dir, "chi.odin"}, context.allocator)
+
+	deps := make(map[string]Dependency)
+	deps["zeta-pkg"] = Dependency{
+		url    = "github.com/user/zeta-pkg",
+		commit = "aaa111",
+		hash   = "blake2b-aaa",
+	}
+	deps["alpha-pkg"] = Dependency{
+		url    = "github.com/user/alpha-pkg",
+		commit = "bbb222",
+		hash   = "blake2b-bbb",
+	}
+	deps["mid-pkg"] = Dependency{
+		url    = "github.com/user/mid-pkg",
+		commit = "ccc333",
+		hash   = "blake2b-ccc",
+	}
+
+	ok := write_manifest(manifest_path, deps)
+	testing.expect(t, ok, "write_manifest should succeed")
+	delete(deps)
+
+	// Read the raw file and verify keys appear in alphabetical order
+	data, err := os2.read_entire_file_from_path(manifest_path, context.allocator)
+	testing.expect(t, err == nil, "should read manifest file")
+	content := string(data)
+
+	alpha_pos := strings.index(content, "\"alpha-pkg\"")
+	mid_pos := strings.index(content, "\"mid-pkg\"")
+	zeta_pos := strings.index(content, "\"zeta-pkg\"")
+
+	testing.expect(t, alpha_pos >= 0 && mid_pos >= 0 && zeta_pos >= 0,
+		"all three dep names should appear in the file")
+	testing.expect(t, alpha_pos < mid_pos,
+		fmt.tprintf("alpha-pkg (%d) should appear before mid-pkg (%d)", alpha_pos, mid_pos))
+	testing.expect(t, mid_pos < zeta_pos,
+		fmt.tprintf("mid-pkg (%d) should appear before zeta-pkg (%d)", mid_pos, zeta_pos))
+
+	delete(data)
+	delete(manifest_path)
+}
+
+@(test)
+test_manifest_reordered_declarations :: proc(t: ^testing.T) {
+	tmp_dir := "test_tmp_reorder"
+	os2.make_directory(tmp_dir)
+	defer os2.remove_all(tmp_dir)
+
+	manifest_path := filepath.join({tmp_dir, "chi.odin"}, context.allocator)
+
+	// Dependency struct declared BEFORE Dependencies constant
+	content := `package deps
+
+Dependency :: struct {
+    url:    string,
+    commit: string,
+    hash:   string,
+    path:   string,
+}
+
+Dependencies :: map[string]Dependency{
+    "my-lib" = {
+        url    = "github.com/user/my-lib",
+        commit = "deadbeef1234",
+        hash   = "blake2b-cafebabe",
+    },
+}
+`
+	_ = os2.write_entire_file_from_string(manifest_path, content)
+
+	deps, ok := read_manifest(manifest_path)
+	testing.expect(t, ok, "read_manifest should succeed with reordered declarations")
+	testing.expect(t, len(deps) == 1, fmt.tprintf("expected 1 dep, got %d", len(deps)))
+
+	dep := deps["my-lib"]
+	testing.expect(t, dep.url == "github.com/user/my-lib",
+		fmt.tprintf("expected url, got %q", dep.url))
+	testing.expect(t, dep.commit == "deadbeef1234",
+		fmt.tprintf("expected commit, got %q", dep.commit))
+	testing.expect(t, dep.hash == "blake2b-cafebabe",
+		fmt.tprintf("expected hash, got %q", dep.hash))
+
+	for k, v in deps {
+		delete(k)
+		delete(v.url)
+		delete(v.commit)
+		delete(v.hash)
+		delete(v.path)
+	}
+	delete(deps)
+	delete(manifest_path)
+}
+
+@(test)
+test_manifest_malformed :: proc(t: ^testing.T) {
+	tmp_dir := "test_tmp_malformed"
+	os2.make_directory(tmp_dir)
+	defer os2.remove_all(tmp_dir)
+
+	manifest_path := filepath.join({tmp_dir, "chi.odin"}, context.allocator)
+
+	// Invalid Odin syntax — missing closing brace
+	content := `package deps
+
+Dependencies :: map[string]Dependency{
+    "broken" = {
+        url = "github.com/test/broken",
+`
+	_ = os2.write_entire_file_from_string(manifest_path, content)
+
+	deps, ok := read_manifest(manifest_path)
+	testing.expect(t, !ok, "read_manifest should fail for malformed manifest")
+	testing.expect(t, len(deps) == 0, "deps should be empty for malformed manifest")
+
+	delete(manifest_path)
+}
