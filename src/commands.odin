@@ -5,6 +5,24 @@ import os2 "core:os/os2"
 import "core:path/filepath"
 import "core:strings"
 
+// Try to apply a patch file for a dependency if one exists in patches/
+@(private = "file")
+try_apply_patch :: proc(name: string) {
+	patch_path := filepath.join({"patches", fmt.tprintf("%s.patch", name)}, context.allocator)
+	defer delete(patch_path)
+
+	if !os2.exists(patch_path) {
+		return
+	}
+
+	print_info(fmt.tprintf("Applying patch for %s ...", name))
+	if run_cmd_silent({"patch", "-p0", "-i", patch_path}) {
+		print_success(fmt.tprintf("Applied patch for %s", name))
+	} else {
+		print_warn(fmt.tprintf("Failed to apply patch for %s (may need manual resolution)", name))
+	}
+}
+
 // chi init — Create a new chi.odin manifest
 cmd_init :: proc() {
 	if os2.exists(MANIFEST_FILE) {
@@ -145,7 +163,23 @@ cmd_vendor :: proc() {
 
 	all_ok := true
 	for name, dep in deps {
-		// Use local path override if set
+		// Fork override takes highest precedence
+		fork_path, has_fork := fork_overrides[name]
+		if has_fork {
+			print_info(fmt.tprintf("Using fork override for %s: %s", name, fork_path))
+			vendor_path := filepath.join({"vendor", name}, context.allocator)
+			defer delete(vendor_path)
+
+			if !copy_to_vendor(fork_path, vendor_path) {
+				print_error(fmt.tprintf("Failed to copy fork override for %s", name))
+				all_ok = false
+			} else {
+				print_success(fmt.tprintf("Vendored %s (fork)", name))
+			}
+			continue
+		}
+
+		// Use local path override if set in manifest
 		if dep.path != "" {
 			print_info(fmt.tprintf("Using local override for %s: %s", name, dep.path))
 			vendor_path := filepath.join({"vendor", name}, context.allocator)
@@ -196,6 +230,7 @@ cmd_vendor :: proc() {
 			all_ok = false
 		} else {
 			print_success(fmt.tprintf("Vendored %s", name))
+			try_apply_patch(name)
 		}
 	}
 
@@ -266,6 +301,12 @@ cmd_update :: proc(name: string) {
 			name,
 			dep.commit[:min(len(dep.commit), 12)],
 			new_commit[:min(len(new_commit), 12)]))
+
+		patch_path := filepath.join({"patches", fmt.tprintf("%s.patch", name)}, context.allocator)
+		defer delete(patch_path)
+		if os2.exists(patch_path) {
+			print_info(fmt.tprintf("Patch exists for %s. Run 'chi vendor' to re-vendor and auto-apply it.", name))
+		}
 	} else {
 		print_error("Failed to write chi.odin")
 		os2.exit(1)
@@ -303,6 +344,29 @@ cmd_remove :: proc(name: string) {
 	}
 }
 
+// chi list — List all dependencies
+cmd_list :: proc() {
+	deps, ok := read_manifest(MANIFEST_FILE)
+	if !ok {
+		print_error("Failed to read chi.odin. Run 'chi init' first.")
+		os2.exit(1)
+	}
+
+	if len(deps) == 0 {
+		print_info("No dependencies")
+		return
+	}
+
+	for name, dep in deps {
+		commit_short := dep.commit[:min(len(dep.commit), 12)]
+		if dep.path != "" {
+			fmt.printfln("  %s  %s@%s  (local: %s)", name, dep.url, commit_short, dep.path)
+		} else {
+			fmt.printfln("  %s  %s@%s", name, dep.url, commit_short)
+		}
+	}
+}
+
 // chi check — Verify vendor/ matches manifest hashes
 cmd_check :: proc() {
 	deps, ok := read_manifest(MANIFEST_FILE)
@@ -318,6 +382,12 @@ cmd_check :: proc() {
 
 	all_ok := true
 	for name, dep in deps {
+		// Skip hash check for forked dependencies
+		if name in fork_overrides {
+			print_info(fmt.tprintf("%s: skipping hash check (forked)", name))
+			continue
+		}
+
 		vendor_path := filepath.join({"vendor", name}, context.allocator)
 		defer delete(vendor_path)
 
@@ -350,5 +420,118 @@ cmd_check :: proc() {
 	} else {
 		print_error("Integrity check failed")
 		os2.exit(1)
+	}
+}
+
+// chi patch — Generate .patch files for modified vendored dependencies
+cmd_patch :: proc() {
+	deps, ok := read_manifest(MANIFEST_FILE)
+	if !ok {
+		print_error("Failed to read chi.odin. Run 'chi init' first.")
+		os2.exit(1)
+	}
+
+	if len(deps) == 0 {
+		print_info("No dependencies to patch")
+		return
+	}
+
+	// Check that diff is available
+	if !run_cmd_silent({"diff", "--version"}) {
+		print_error("'diff' command not found. Install diffutils and ensure 'diff' is in your PATH.")
+		os2.exit(1)
+	}
+
+	// Ensure patches directory exists
+	if !os2.exists("patches") {
+		err := os2.make_directory("patches")
+		if err != nil {
+			print_error("Failed to create patches/ directory")
+			os2.exit(1)
+		}
+	}
+
+	// Create temp directory for baseline copies
+	tmp_dir := ".chi_tmp"
+	if os2.exists(tmp_dir) {
+		os2.remove_all(tmp_dir)
+	}
+	os2.make_directory(tmp_dir)
+	defer os2.remove_all(tmp_dir)
+
+	any_patches := false
+	for name, dep in deps {
+		vendor_path := filepath.join({"vendor", name}, context.allocator)
+		defer delete(vendor_path)
+
+		if !os2.exists(vendor_path) {
+			continue
+		}
+
+		// Ensure the cached baseline exists
+		if !is_cached(dep.url, dep.commit) {
+			print_info(fmt.tprintf("Fetching baseline for %s ...", name))
+			if !git_fetch_to_cache(dep.url, dep.commit) {
+				print_error(fmt.tprintf("Failed to fetch baseline for %s", name))
+				continue
+			}
+		}
+
+		cache_path, cache_ok := get_cached_path(dep.url, dep.commit)
+		if !cache_ok {
+			print_error(fmt.tprintf("Failed to get cache path for %s", name))
+			continue
+		}
+		defer delete(cache_path)
+
+		// Copy baseline to temp dir (excluding .git)
+		baseline_path := filepath.join({tmp_dir, name}, context.allocator)
+		defer delete(baseline_path)
+
+		if !copy_to_vendor(cache_path, baseline_path) {
+			print_error(fmt.tprintf("Failed to copy baseline for %s", name))
+			continue
+		}
+
+		// Run diff -ruN baseline vendor/<name>
+		// diff exit code: 0 = no diff, 1 = differences found, >1 = error
+		patch_path := filepath.join({"patches", fmt.tprintf("%s.patch", name)}, context.allocator)
+		defer delete(patch_path)
+
+		state, stdout, stderr, exec_err := os2.process_exec(
+			os2.Process_Desc{
+				command = {"diff", "-ruN", baseline_path, vendor_path},
+			},
+			context.allocator,
+		)
+		defer delete(stdout)
+		defer delete(stderr)
+
+		if exec_err != nil || state.exit_code > 1 {
+			print_error(fmt.tprintf("Failed to run diff for %s", name))
+			continue
+		}
+
+		diff_output := string(stdout)
+		if state.exit_code == 0 {
+			// No differences
+			if os2.exists(patch_path) {
+				os2.remove(patch_path)
+			}
+			print_info(fmt.tprintf("%s: no changes", name))
+		} else {
+			// exit_code == 1: differences found
+			write_err := os2.write_entire_file_from_string(patch_path, diff_output)
+			if write_err != nil {
+				print_error(fmt.tprintf("Failed to write patch for %s", name))
+				continue
+			}
+			print_success(fmt.tprintf("%s: patch saved to %s", name, patch_path))
+			any_patches = true
+		}
+	}
+
+	if !any_patches {
+		print_info("No modifications detected in vendored dependencies")
 	}
 }

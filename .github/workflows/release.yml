@@ -5,9 +5,29 @@ on:
     tags:
       - "v*"
 
+env:
+  ODIN_VERSION: dev-2026-02
+
 jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Odin
+        uses: laytan/setup-odin@v2
+        with:
+          release: ${{ env.ODIN_VERSION }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run unit tests
+        run: odin test src/ -all-packages
+
   build:
     name: Build (${{ matrix.suffix }})
+    needs: test
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -46,7 +66,7 @@ jobs:
       - name: Setup Odin
         uses: laytan/setup-odin@v2
         with:
-          release: dev-2026-02
+          release: ${{ env.ODIN_VERSION }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build binary (Unix)

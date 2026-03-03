@@ -23,10 +23,6 @@ chmod +x chi
 curl -L https://github.com/pmbanugo/odin-chi/releases/latest/download/chi-linux-arm64 -o chi
 chmod +x chi
 
-# Linux (i386)
-curl -L https://github.com/pmbanugo/odin-chi/releases/latest/download/chi-linux-i386 -o chi
-chmod +x chi
-
 # macOS (Apple Silicon)
 curl -L https://github.com/pmbanugo/odin-chi/releases/latest/download/chi-darwin-arm64 -o chi
 chmod +x chi
@@ -37,9 +33,6 @@ chmod +x chi
 
 # Windows (amd64)
 curl -L https://github.com/pmbanugo/odin-chi/releases/latest/download/chi-windows-amd64 -o chi.exe
-
-# Windows (i386)
-curl -L https://github.com/pmbanugo/odin-chi/releases/latest/download/chi-windows-i386 -o chi.exe
 ```
 
 Check [Releases](https://github.com/pmbanugo/odin-chi/releases) for additional architectures.
@@ -135,13 +128,41 @@ Remove a dependency from the manifest and delete its `vendor/` directory:
 chi remove odin-http
 ```
 
-### 5. Integrity Check
+### 5. List Dependencies
+
+View all dependencies in your manifest:
+
+```bash
+chi list
+```
+
+### 6. Integrity Check
 
 At any time, you can verify that your local vendored files match the exact hashes recorded in your `chi.odin` manifest:
 
 ```bash
 chi check
 ```
+
+### 7. Generate Patches
+
+If you've modified files inside `vendor/`, you can generate `.patch` files to preserve your local changes across dependency updates:
+
+```bash
+chi patch
+```
+
+Patches are saved to `patches/<name>.patch` as unified diffs. When you run `chi vendor`, existing patches are automatically re-applied after vendoring. You can also apply them manually with `patch -p0 < patches/<name>.patch`.
+
+### 8. Fork Override
+
+Use the `--fork` flag to temporarily override a dependency with a local directory for development or debugging:
+
+```bash
+chi vendor --fork=odin-http:/path/to/local/odin-http
+```
+
+This copies files from the local path instead of the cache, and is not persisted in the manifest. Hash checks are skipped for forked dependencies when running `chi check`.
 
 ## The `chi.odin` Format
 

@@ -4,12 +4,12 @@ import "core:fmt"
 import os2 "core:os/os2"
 import "core:strings"
 
-// Clone a repository to a destination directory
+// Clone a repository to a destination directory (shallow by default)
 git_clone :: proc(url: string, dest: string) -> bool {
 	git_url := make_git_url(url)
 	defer delete(git_url)
 
-	ok := run_cmd_silent({"git", "clone", "--quiet", git_url, dest})
+	ok := run_cmd_silent({"git", "clone", "--quiet", "--depth", "1", git_url, dest})
 	if !ok {
 		print_error(fmt.tprintf("git clone failed for %s", url))
 	}
@@ -86,12 +86,25 @@ git_fetch_to_cache :: proc(url: string, commit: string) -> bool {
 
 	print_info(fmt.tprintf("Fetching %s@%s ...", url, commit[:min(len(commit), 12)]))
 
-	// Clone the repository
+	// Shallow clone (fast for HEAD/latest commits)
 	if !git_clone(url, cache_path) {
 		return false
 	}
 
-	// Checkout the specific commit
+	// Try checkout — works if commit is the cloned HEAD
+	if git_checkout(cache_path, commit) {
+		return true
+	}
+
+	// Commit not in shallow clone; fetch full history and retry
+	git_url := make_git_url(url)
+	defer delete(git_url)
+
+	if !run_cmd_silent({"git", "fetch", "--quiet", "--unshallow", git_url}, cache_path) {
+		os2.remove_all(cache_path)
+		return false
+	}
+
 	if !git_checkout(cache_path, commit) {
 		os2.remove_all(cache_path)
 		return false

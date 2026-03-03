@@ -8,6 +8,9 @@ on:
     branches:
       - main
 
+env:
+  ODIN_VERSION: dev-2026-02
+
 jobs:
   test:
     name: Run Tests (${{ matrix.os }})
@@ -27,7 +30,7 @@ jobs:
       - name: Setup Odin
         uses: laytan/setup-odin@v2
         with:
-          release: dev-2026-02
+          release: ${{ env.ODIN_VERSION }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run unit tests

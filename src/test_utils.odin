@@ -17,6 +17,7 @@ test_url_to_dir_name :: proc(t: ^testing.T) {
 
 	for c in cases {
 		result := url_to_dir_name(c.input)
+		defer delete(result)
 		testing.expect(t, result == c.expected, 
 			fmt.tprintf("url_to_dir_name(%q) = %q, expected %q", c.input, result, c.expected))
 	}
@@ -36,6 +37,7 @@ test_url_to_pkg_name :: proc(t: ^testing.T) {
 
 	for c in cases {
 		result := url_to_pkg_name(c.input)
+		defer delete(result)
 		testing.expect(t, result == c.expected,
 			fmt.tprintf("url_to_pkg_name(%q) = %q, expected %q", c.input, result, c.expected))
 	}

@@ -2,6 +2,10 @@
 chi
 chi.bin
 odin-chi
+.chi_tmp
+
+# Generated patch files
+patches/
 
 # OS specific
 .DS_Store

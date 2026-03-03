@@ -30,13 +30,7 @@ test_write_and_read_manifest :: proc(t: ^testing.T) {
 	ok := write_manifest(manifest_path, deps)
 	testing.expect(t, ok, "write_manifest should succeed")
 
-	for k, v in deps {
-		delete(k)
-		delete(v.url)
-		delete(v.commit)
-		delete(v.hash)
-		delete(v.path)
-	}
+	// Only delete the map itself — keys and values are string literals, not heap-allocated
 	delete(deps)
 
 	read_deps, read_ok := read_manifest(manifest_path)
